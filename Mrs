@@ -1,0 +1,70 @@
+# Install and load required packages
+if (!require("tidyverse")) install.packages("tidyverse")
+
+# Dummy movie data
+movies <- tibble(
+  MovieID = 1:10,
+  Title = c("Inception", "The Shawshank Redemption", "The Dark Knight", "Pulp Fiction", "Forrest Gump",
+            "The Godfather", "Titanic", "Interstellar", "The Matrix", "Fight Club"),
+  Genre = c("Sci-Fi", "Drama", "Action", "Crime", "Drama",
+            "Crime", "Romance", "Sci-Fi", "Sci-Fi", "Drama")
+)
+
+# Dummy ratings data
+ratings <- tibble(
+  UserID = c(1, 1, 2, 2, 3, 4, 4, 5, 5, 6),
+  MovieID = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  Rating = c(4, 5, 5, 4, 4, 5, 4, 4, 5, 4)
+)
+
+# Merge data using dplyr
+movie_ratings <- inner_join(ratings, movies, by = "MovieID")
+
+# Create a user-movie matrix
+user_movie_matrix <- spread(movie_ratings, key = "MovieID", value = "Rating", fill = 0)
+
+# Assuming user_movie_matrix does not contain MovieID column, recreate user_movie_matrix with MovieID
+user_movie_matrix <- cbind(data.frame(MovieID = movies$MovieID), user_movie_matrix)
+
+# Updated get_movie_recommendation function with additional output check
+get_movie_recommendation <- function(user_genre, genre_movies) {
+  genre_user_matrix <- inner_join(user_movie_matrix, genre_movies, by = "MovieID")
+  
+  if (nrow(genre_user_matrix) == 0) {
+    return("Sorry, there are no movies in that genre with ratings available.")
+  } else {
+    genre_user_matrix[is.na(genre_user_matrix)] <- 0
+    numeric_cols <- sapply(genre_user_matrix, is.numeric)
+    genre_user_matrix_numeric <- genre_user_matrix[, numeric_cols]
+    
+    genre_user_matrix$avg_rating <- rowMeans(genre_user_matrix_numeric, na.rm = TRUE)
+    sorted_movies <- genre_user_matrix[order(-genre_user_matrix$avg_rating), ]
+    
+    if (nrow(sorted_movies) > 0) {
+      top_movie <- sorted_movies$Title[1]
+      return(top_movie)
+    } else {
+      return("Sorry, there are no recommended movies in this genre.")
+    }
+  }
+}
+
+# Ask user for their preferred genre
+user_genre <- readline(prompt = "Enter your preferred genre (Sci-Fi, Drama, Action, Crime, Romance, etc.): ")
+
+# Filter movies by user genre input
+genre_movies <- movies %>% filter(Genre == user_genre) %>% select(MovieID, Title)
+
+# Get movie recommendation based on user input
+recommended_movie <- get_movie_recommendation(user_genre, genre_movies)
+
+# Debug statement to check recommended_movie value
+print(recommended_movie)
+
+# Display the recommended movie as the final output
+if (length(recommended_movie) > 0) {
+  cat("Recommended Movie: ", recommended_movie, "\n")
+} else {
+  cat("No recommended movie matching the preferred genre is available.\n")
+}
+̥
